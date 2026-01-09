@@ -957,7 +957,7 @@ class WanVideoSVIProEmbeds:
             motion_latent = next_latent[:, :motion_latent_count]
             padding_size = total_latents - anchor_latent.shape[1] - motion_latent.shape[1]
             padding = torch.zeros(C, padding_size, H, W, dtype=dtype, device=device)
-            y = torch.concat([motion_latent, anchor_latent, padding], dim=1)
+            y = torch.concat([anchor_latent, padding, motion_latent], dim=1)
 
         msk = torch.ones(1, num_frames, H, W, device=device, dtype=dtype)
         msk[:, 1:] = 0
