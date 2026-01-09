@@ -919,6 +919,7 @@ class WanVideoSVIProEmbeds:
                 },
                 "optional": {
                     "prev_samples": ("LATENT", {"tooltip": "Last latent from previous generation"}),
+                    "next_samples": ("LATENT", {"tooltip": "Latent from next generation (to generate a prepended video)"}),
                     "motion_latent_count": ("INT", {"default": 1, "min": 0, "max": 100, "step": 1, "tooltip": "Number of latents used to continue"}),
                 }
         }
@@ -938,16 +939,25 @@ class WanVideoSVIProEmbeds:
         device = anchor_latent.device
         dtype = anchor_latent.dtype
 
-        if prev_samples is None or motion_latent_count == 0:
+        if prev_samples is not None and next_samples is not None:
+            raise ValueError("prev_samples and next_samples cannot both be provided")
+
+        if (prev_samples is None and next_samples is None) or motion_latent_count == 0:
             padding_size = total_latents - anchor_latent.shape[1]
             padding = torch.zeros(C, padding_size, H, W, dtype=dtype, device=device)
             y = torch.concat([anchor_latent, padding], dim=1)
-        else:
+        else if prev_samples is not None:
             prev_latent = prev_samples["samples"][0].clone()
             motion_latent = prev_latent[:, -motion_latent_count:]
             padding_size = total_latents - anchor_latent.shape[1] - motion_latent.shape[1]
             padding = torch.zeros(C, padding_size, H, W, dtype=dtype, device=device)
             y = torch.concat([anchor_latent, motion_latent, padding], dim=1)
+        else if next_samples is not None:
+            next_latent = next_samples["samples"][0].clone()
+            motion_latent = next_latent[:, :motion_latent_count]
+            padding_size = total_latents - anchor_latent.shape[1] - motion_latent.shape[1]
+            padding = torch.zeros(C, padding_size, H, W, dtype=dtype, device=device)
+            y = torch.concat([motion_latent, anchor_latent, padding], dim=1)
 
         msk = torch.ones(1, num_frames, H, W, device=device, dtype=dtype)
         msk[:, 1:] = 0
